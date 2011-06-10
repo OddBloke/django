@@ -149,6 +149,19 @@ class ExceptionReporterTests(TestCase):
         self.assertIn('<h2>Request information</h2>', html)
         self.assertIn('<p>Request data not supplied</p>', html)
 
+    def test_raw_traceback(self):
+        "The raw traceback is provided in a comment."
+        try:
+            request = self.rf.get('/test_view/')
+            raise ValueError("---------->")
+        except ValueError:
+            exc_type, exc_value, tb = sys.exc_info()
+        reporter = ExceptionReporter(request, exc_type, exc_value, tb)
+        html = reporter.get_traceback_html()
+        self.assertIn('<!----------', html)
+        self.assertEquals(1, html.count('---------->'))
+        self.assertIn('---------->', html)
+
 
 class ExceptionReporterFilterTests(TestCase):
     """

@@ -256,6 +256,7 @@ class ExceptionReporter(object):
             'sys_path' : sys.path,
             'template_info': self.template_info,
             'template_does_not_exist': self.template_does_not_exist,
+            'traceback': self.exception_string(),
             'loader_debug_info': self.loader_debug_info,
         })
         # Check whether exception info is available
@@ -375,6 +376,11 @@ class ExceptionReporter(object):
 
         return frames
 
+    def exception_string(self):
+        unicode_fixed = [smart_unicode(f, errors='replace')
+                            for f in self.format_exception()]
+        return "".join([f for f in unicode_fixed])
+
     def format_exception(self):
         """
         Return the same data as from traceback.format_exception.
@@ -431,6 +437,11 @@ def empty_urlconf(request):
 TECHNICAL_500_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="en">
+{% if traceback %}
+<!----------
+{{ traceback }}
+---------->
+{% endif %}
 <head>
   <meta http-equiv="content-type" content="text/html; charset=utf-8">
   <meta name="robots" content="NONE,NOARCHIVE">
