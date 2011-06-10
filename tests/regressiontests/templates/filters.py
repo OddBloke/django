@@ -12,10 +12,12 @@ from datetime import date, datetime, timedelta
 from django.utils.tzinfo import LocalTimezone, FixedOffset
 from django.utils.safestring import mark_safe
 
+
 # These two classes are used to test auto-escaping of __unicode__ output.
 class UnsafeClass:
     def __unicode__(self):
         return u'you & me'
+
 
 class SafeClass:
     def __unicode__(self):
