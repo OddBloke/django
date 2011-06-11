@@ -143,6 +143,126 @@ class UTF8Class:
     def __str__(self):
         return u'ŠĐĆŽćžšđ'.encode('utf-8')
 
+
+class FilterTest(unittest.TestCase):
+
+    def setUp(self):
+        self._warnings_state = get_warnings_state()
+        warnings.filterwarnings('ignore', category=DeprecationWarning,
+                                module='django.template.defaulttags')
+
+        self.old_static_url = settings.STATIC_URL
+        self.old_media_url = settings.MEDIA_URL
+        settings.STATIC_URL = u"/static/"
+        settings.MEDIA_URL = u"/media/"
+        # Turn TEMPLATE_DEBUG off, because tests assume that.
+        self.old_td, settings.TEMPLATE_DEBUG = settings.TEMPLATE_DEBUG, False
+
+        # Set TEMPLATE_STRING_IF_INVALID to a known string.
+        self.old_invalid = settings.TEMPLATE_STRING_IF_INVALID
+
+        #Set ALLOWED_INCLUDE_ROOTS so that ssi works.
+        self.old_allowed_include_roots = settings.ALLOWED_INCLUDE_ROOTS
+        settings.ALLOWED_INCLUDE_ROOTS = os.path.dirname(os.path.abspath(__file__))
+
+        # Warm the URL reversing cache. This ensures we don't pay the cost
+        # warming the cache during one of the tests.
+        urlresolvers.reverse('regressiontests.templates.views.client_action',
+                             kwargs={'id':0,'action':"update"})
+
+        self.cache_loader = setup_test_template_loader(
+            dict([(name, t[0]) for name, t in filters.get_filter_tests().iteritems()]),
+            use_cached_loader=True,
+        )
+
+
+    def tearDown(self):
+        if self.cache_loader is not None:
+            self.cache_loader.reset()
+        restore_template_loaders()
+        deactivate()
+        settings.TEMPLATE_DEBUG = self.old_td
+        settings.TEMPLATE_STRING_IF_INVALID = self.old_invalid
+        settings.ALLOWED_INCLUDE_ROOTS = self.old_allowed_include_roots
+        settings.STATIC_URL = self.old_static_url
+        settings.MEDIA_URL = self.old_media_url
+        restore_warnings_state(self._warnings_state)
+
+    def render(self, test_template, vals):
+        context = template.Context(vals[1])
+        before_stack_size = len(context.dicts)
+        output = test_template.render(context)
+        if len(context.dicts) != before_stack_size:
+            raise ContextStackException
+        return output
+
+
+def filter_test(name, vals, invalid_str, template_debug, result):
+    def test_method(self):
+
+        if 'LANGUAGE_CODE' in vals[1]:
+            activate(vals[1]['LANGUAGE_CODE'])
+        else:
+            activate('en-us')
+
+        settings.TEMPLATE_STRING_IF_INVALID = invalid_str
+        settings.TEMPLATE_DEBUG = template_debug
+        for is_cached in (False, True):
+            try:
+                start = datetime.now()
+                test_template = loader.get_template(name)
+                end = datetime.now()
+                if end-start > timedelta(seconds=0.2):
+                    self.fail("Template test (Cached='%s', TEMPLATE_STRING_IF_INVALID='%s', TEMPLATE_DEBUG=%s): %s -- FAILED. Took too long to parse test" % (is_cached, invalid_str, template_debug, name))
+
+                start = datetime.now()
+                output = self.render(test_template, vals)
+                end = datetime.now()
+                if end-start > timedelta(seconds=0.2):
+                    self.fail("Template test (Cached='%s', TEMPLATE_STRING_IF_INVALID='%s', TEMPLATE_DEBUG=%s): %s -- FAILED. Took too long to render test" % (is_cached, invalid_str, template_debug, name))
+            except ContextStackException:
+                self.fail("Template test (Cached='%s', TEMPLATE_STRING_IF_INVALID='%s', TEMPLATE_DEBUG=%s): %s -- FAILED. Context stack was left imbalanced" % (is_cached, invalid_str, template_debug, name))
+            if output != result:
+                self.fail("Template test (Cached='%s', TEMPLATE_STRING_IF_INVALID='%s', TEMPLATE_DEBUG=%s): %s -- FAILED. Expected %r, got %r" % (is_cached, invalid_str, template_debug, name, result, output))
+        self.cache_loader.reset()
+
+        if 'LANGUAGE_CODE' in vals[1]:
+            deactivate()
+
+        if template_base.invalid_var_format_string:
+            expected_invalid_str = 'INVALID'
+            template_base.invalid_var_format_string = False
+    return test_method
+
+
+for name, vals in filters.get_filter_tests().items():
+    expected_invalid_str = 'INVALID'
+    if isinstance(vals[2], tuple):
+        normal_string_result = vals[2][0]
+        invalid_string_result = vals[2][1]
+
+        if isinstance(invalid_string_result, tuple):
+            expected_invalid_str = 'INVALID %s'
+            invalid_string_result = invalid_string_result[0] % invalid_string_result[1]
+            template_base.invalid_var_format_string = True
+
+        try:
+            template_debug_result = vals[2][2]
+        except IndexError:
+            template_debug_result = normal_string_result
+
+    else:
+        normal_string_result = vals[2]
+        invalid_string_result = vals[2]
+        template_debug_result = vals[2]
+    setattr(FilterTest, 'test_%s_normal' % (name.replace('-', '_'),),
+            filter_test(name, vals, invalid_str='', template_debug=False, result=normal_string_result))
+    setattr(FilterTest, 'test_%s_invalid' % (name.replace('-', '_'),),
+            filter_test(name, vals, invalid_str=expected_invalid_str, template_debug=False, result=invalid_string_result))
+    setattr(FilterTest, 'test_%s_debug' % (name.replace('-', '_'),),
+            filter_test(name, vals, invalid_str='', template_debug=True, result=template_debug_result))
+
+
 class Templates(unittest.TestCase):
     def setUp(self):
         self._warnings_state = get_warnings_state()
