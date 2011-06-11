@@ -235,32 +235,36 @@ def filter_test(name, vals, invalid_str, template_debug, result):
     return test_method
 
 
-for name, vals in filters.get_filter_tests().items():
-    expected_invalid_str = 'INVALID'
-    if isinstance(vals[2], tuple):
-        normal_string_result = vals[2][0]
-        invalid_string_result = vals[2][1]
+def generate_template_tests(testcase, test_dict):
+    for name, vals in test_dict.items():
+        expected_invalid_str = 'INVALID'
+        if isinstance(vals[2], tuple):
+            normal_string_result = vals[2][0]
+            invalid_string_result = vals[2][1]
 
-        if isinstance(invalid_string_result, tuple):
-            expected_invalid_str = 'INVALID %s'
-            invalid_string_result = invalid_string_result[0] % invalid_string_result[1]
-            template_base.invalid_var_format_string = True
+            if isinstance(invalid_string_result, tuple):
+                expected_invalid_str = 'INVALID %s'
+                invalid_string_result = invalid_string_result[0] % invalid_string_result[1]
+                template_base.invalid_var_format_string = True
 
-        try:
-            template_debug_result = vals[2][2]
-        except IndexError:
-            template_debug_result = normal_string_result
+            try:
+                template_debug_result = vals[2][2]
+            except IndexError:
+                template_debug_result = normal_string_result
 
-    else:
-        normal_string_result = vals[2]
-        invalid_string_result = vals[2]
-        template_debug_result = vals[2]
-    setattr(FilterTest, 'test_%s_normal' % (name.replace('-', '_'),),
-            filter_test(name, vals, invalid_str='', template_debug=False, result=normal_string_result))
-    setattr(FilterTest, 'test_%s_invalid' % (name.replace('-', '_'),),
-            filter_test(name, vals, invalid_str=expected_invalid_str, template_debug=False, result=invalid_string_result))
-    setattr(FilterTest, 'test_%s_debug' % (name.replace('-', '_'),),
-            filter_test(name, vals, invalid_str='', template_debug=True, result=template_debug_result))
+        else:
+            normal_string_result = vals[2]
+            invalid_string_result = vals[2]
+            template_debug_result = vals[2]
+        setattr(testcase, 'test_%s_normal' % (name.replace('-', '_'),),
+                filter_test(name, vals, invalid_str='', template_debug=False, result=normal_string_result))
+        setattr(testcase, 'test_%s_invalid' % (name.replace('-', '_'),),
+                filter_test(name, vals, invalid_str=expected_invalid_str, template_debug=False, result=invalid_string_result))
+        setattr(testcase, 'test_%s_debug' % (name.replace('-', '_'),),
+                filter_test(name, vals, invalid_str='', template_debug=True, result=template_debug_result))
+
+
+generate_template_tests(FilterTest, filters.get_filter_tests())
 
 
 class Templates(unittest.TestCase):
