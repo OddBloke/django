@@ -144,7 +144,7 @@ class UTF8Class:
         return u'ŠĐĆŽćžšđ'.encode('utf-8')
 
 
-class FilterTest(unittest.TestCase):
+class FilterDictTest(unittest.TestCase):
 
     def setUp(self):
         self._warnings_state = get_warnings_state()
@@ -169,12 +169,10 @@ class FilterTest(unittest.TestCase):
         # warming the cache during one of the tests.
         urlresolvers.reverse('regressiontests.templates.views.client_action',
                              kwargs={'id':0,'action':"update"})
+        self.set_up_cache_loader()
 
-        self.cache_loader = setup_test_template_loader(
-            dict([(name, t[0]) for name, t in filters.get_filter_tests().iteritems()]),
-            use_cached_loader=True,
-        )
-
+    def set_up_cache_loader(self):
+        raise NotImplementedError
 
     def tearDown(self):
         if self.cache_loader is not None:
@@ -195,6 +193,15 @@ class FilterTest(unittest.TestCase):
         if len(context.dicts) != before_stack_size:
             raise ContextStackException
         return output
+
+
+class FilterTest(FilterDictTest):
+
+    def set_up_cache_loader(self):
+        self.cache_loader = setup_test_template_loader(
+            dict([(name, t[0]) for name, t in filters.get_filter_tests().iteritems()]),
+            use_cached_loader=True,
+        )
 
 
 def filter_test(name, vals, invalid_str, template_debug, result):
