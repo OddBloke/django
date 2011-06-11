@@ -627,6 +627,7 @@ class Templates(unittest.TestCase):
             raise ContextStackException
         return output
 
+    @classmethod
     def get_template_tests(self):
         # SYNTAX --
         # 'template_name': ('template contents', 'context dict', 'expected string output' or Exception class)
@@ -1727,6 +1728,19 @@ class Templates(unittest.TestCase):
             'static-prefixtag03': ('{% load static %}{% get_media_prefix %}', {}, settings.MEDIA_URL),
             'static-prefixtag04': ('{% load static %}{% get_media_prefix as media_prefix %}{{ media_prefix }}', {}, settings.MEDIA_URL),
         }
+
+
+class TemplateTests(FilterDictTest):
+
+    def set_up_cache_loader(self):
+        self.cache_loader = setup_test_template_loader(
+            dict([(name, t[0]) for name, t in Templates.get_template_tests().iteritems()]),
+            use_cached_loader=True,
+        )
+
+
+generate_template_tests(TemplateTests, Templates.get_template_tests())
+
 
 class TemplateTagLoading(unittest.TestCase):
 
