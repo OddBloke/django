@@ -507,14 +507,6 @@ class Templates(unittest.TestCase):
 
     def test_templates(self):
         template_tests = self.get_template_tests()
-        filter_tests = filters.get_filter_tests()
-
-        # Quickly check that we aren't accidentally using a name in both
-        # template and filter tests.
-        overlapping_names = [name for name in filter_tests if name in template_tests]
-        assert not overlapping_names, 'Duplicate test name(s): %s' % ', '.join(overlapping_names)
-
-        template_tests.update(filter_tests)
 
         cache_loader = setup_test_template_loader(
             dict([(name, t[0]) for name, t in template_tests.iteritems()]),
